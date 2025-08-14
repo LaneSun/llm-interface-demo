@@ -14,12 +14,16 @@
 		"test": "npm run test:unit -- --run"
 	},
 	"devDependencies": {
-		"@lucide/svelte": "^0.539.0",
+		"@internationalized/date": "^3.8.1",
+		"@lucide/svelte": "^0.515.0",
 		"@sveltejs/adapter-auto": "^6.0.0",
 		"@sveltejs/kit": "^2.22.0",
 		"@sveltejs/vite-plugin-svelte": "^6.0.0",
 		"@tailwindcss/vite": "^4.0.0",
+		"bits-ui": "^2.8.6",
 		"clsx": "^2.1.1",
+		"eventemitter3": "^5.0.1",
+		"paneforge": "^1.0.0",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
 		"tailwind-merge": "^3.3.1",
