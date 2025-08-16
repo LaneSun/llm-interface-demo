@@ -2,6 +2,7 @@ import { frame } from "$lib/utils";
 import { EventEmitter } from "eventemitter3";
 
 export class RandomRMD extends EventEmitter {
+  static name = "RMD噪声波";
   constructor() {
     super();
     this.started = false;
@@ -53,7 +54,7 @@ export class RandomRMD extends EventEmitter {
           block[0] = start;
         }
         this.emit("data", this.get(offset));
-        if (offset % 4 === 0) await frame();
+        await frame();
         offset++;
       }
     }

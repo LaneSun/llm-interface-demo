@@ -1,8 +1,8 @@
 import { frame } from "$lib/utils";
 import { EventEmitter } from "eventemitter3";
 
-export class SineWave extends EventEmitter {
-  static name = "正弦波";
+export class SawWave extends EventEmitter {
+  static name = "锯齿波";
   constructor() {
     super();
     this.started = false;
@@ -15,10 +15,7 @@ export class SineWave extends EventEmitter {
       let offset = 0;
       while (this.started) {
         if (offset === period) offset = 0;
-        this.emit(
-          "data",
-          (Math.sin((Math.PI * 2 * offset) / period) + 1) / 4 + 0.25,
-        );
+        this.emit("data", (offset / period) * 0.5 + 0.25);
         await frame();
         offset++;
       }
