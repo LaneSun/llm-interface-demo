@@ -1,11 +1,14 @@
 <script module>
     export const name = "实时视图";
+    export const xxxx = "HHHH";
 </script>
 
 <script>
     import { Collectors } from "$lib/app/collector";
     import { frame } from "$lib/utils";
     import { onMount, tick } from "svelte";
+
+    export const xxxx = "HHHH";
 
     const colors = [
         "#f43f5e",
