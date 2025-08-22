@@ -6,7 +6,7 @@
     import LLM from "@themaximalist/llm.js";
     import { onMount } from "svelte";
     import { marked } from "marked";
-    import { Contexts } from "./context";
+    import { Contexts, SYSTEM_PROMPT } from "./context";
     import { parse } from "@thi.ng/sexpr";
 
     const opts = {
@@ -15,6 +15,8 @@
         apiKey: env.PUBLIC_OPENROUTER_API_KEY,
         model: "openai/gpt-oss-120b",
         // model: "google/gemma-3-27b-it",
+        // model: "inception/mercury",
+        // model: "deepseek/deepseek-chat-v3.1",
         // service: "deepseek",
         // apiKey: env.PUBLIC_DEEPSEEK_API_KEY,
         // model: "deepseek-chat",
@@ -45,25 +47,7 @@
                 last_llm_reaction_time,
             }),
         });
-        const json = context.to_json();
-        console.log(JSON.stringify(json));
-        llm.messages[0].content = `\
-You are an AI assistant for ${context.app_name}. Here is the current app context:
-\`\`\`json
-${JSON.stringify(json)}
-\`\`\`
-
-Please respond according to the following guidelines:
-1. Always reply in **Simplified Chinese (zh_CN)**
-2. Prioritize answers based on the provided context
-3. If the context is insufficient, politely ask the user for clarification
-4. Maintain a friendly and professional tone
-
-Response may include embedded view in Scheme LISP markup. Refer to the \`available_views\` in \
-the context for supported view functions and arguments. Each view code should be put inside \
-a (view ...) call with in a \`\`\`lisp ... \`\`\` code block, app will parse and render the real \
-view below the assistant content.
-`;
+        llm.messages[0].content = SYSTEM_PROMPT(context);
     }
 
     async function chat(msg) {
@@ -98,14 +82,40 @@ view below the assistant content.
         console.log(content);
         const view_content = content.match(/```lisp(.*?)```/s)?.[1];
         if (view_content) {
-            console.log(view_content);
             const expr = parse(view_content, {
                 scopes: [
                     ["(", ")"],
                     ["[", "]"],
                 ],
             });
-            console.log(expr);
+            const views = expr.children.map(parse_sexpr);
+            console.log(views);
+        }
+    }
+
+    function parse_sexpr(expr) {
+        switch (expr.type) {
+            // case "root": return expr.children.map(parse_sexpr);
+            case "expr": {
+                switch (expr.value) {
+                    case "(":
+                        return expr.children.map(parse_sexpr);
+                    case "[":
+                        return ["array"].concat(expr.children.map(parse_sexpr));
+                    default:
+                        throw new Error(
+                            `Unsupported expression type: ${expr.type}`,
+                        );
+                }
+            }
+            case "sym":
+                return expr.value.toLowerCase();
+            case "num":
+                return ["number", expr.value];
+            case "str":
+                return ["string", expr.value];
+            default:
+                throw new Error(`Unsupported expression type: ${expr.type}`);
         }
     }
 </script>
