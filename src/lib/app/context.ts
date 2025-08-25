@@ -46,12 +46,37 @@ export class Root extends ContextNode<Root> {
       description: "视图的根元素，必须，内部有且仅有一个元素",
     }),
     new ViewType().with({
+      name: "box",
+      description: "仅容纳一个元素的布局容器，一般用于指定拓展",
+      params: [
+        new ViewParam().with({
+          name: "grow",
+          description: "控制容器是否在父容器中拓展",
+          type: ["boolean"],
+        }),
+      ],
+    }),
+    new ViewType().with({
       name: "h-box",
       description: "使内部元素水平放置的布局容器",
+      params: [
+        new ViewParam().with({
+          name: "grow",
+          description: "控制容器是否在父容器中拓展",
+          type: ["boolean"],
+        }),
+      ],
     }),
     new ViewType().with({
       name: "v-box",
       description: "使内部元素垂直放置的布局容器",
+      params: [
+        new ViewParam().with({
+          name: "grow",
+          description: "控制容器是否在父容器中拓展",
+          type: ["boolean"],
+        }),
+      ],
     }),
     new ViewType().with({
       name: "grid",
@@ -93,6 +118,11 @@ export class Root extends ContextNode<Root> {
           description: "显示在按钮上的文本",
           type: ["string"],
         }),
+        new ViewParam().with({
+          name: "click",
+          description: "当按钮被点击时触发的函数，一般从 prepare 提供",
+          type: ["function"],
+        }),
       ],
     }),
     new ViewType().with({
@@ -103,6 +133,10 @@ export class Root extends ContextNode<Root> {
           name: "label",
           description: "显示在开关上的名称标题",
           type: ["string"],
+        }),
+        new ViewParam().with({
+          name: "value",
+          type: ["boolean"],
         }),
       ],
     }),
@@ -120,6 +154,11 @@ export class Root extends ContextNode<Root> {
           name: "multiple",
           description: "指示是否可以选择多个选项",
           type: ["boolean"],
+        }),
+        new ViewParam().with({
+          name: "value",
+          description: "当前选择项的值，如果允许多选则为值的数组",
+          type: "*",
         }),
       ],
       argument_types: ["item"],
@@ -149,6 +188,11 @@ export class Root extends ContextNode<Root> {
           description: "显示在控件上的名称标题",
           type: ["string"],
         }),
+        new ViewParam().with({
+          name: "value",
+          description: "用户输入的字符串",
+          type: ["string"],
+        }),
       ],
     }),
     new ViewType().with({
@@ -159,6 +203,10 @@ export class Root extends ContextNode<Root> {
           name: "label",
           description: "显示在控件上的名称标题",
           type: ["string"],
+        }),
+        new ViewParam().with({
+          name: "value",
+          type: ["number"],
         }),
         new ViewParam().with({
           name: "max",
@@ -181,6 +229,11 @@ export class Root extends ContextNode<Root> {
           description: "显示在控件上的名称标题",
           type: ["string"],
         }),
+        new ViewParam().with({
+          name: "value",
+          description: '选择颜色的hex值，没有透明通道，形如 "#ffffff"',
+          type: ["string"],
+        }),
       ],
     }),
     new ViewType().with({
@@ -190,6 +243,11 @@ export class Root extends ContextNode<Root> {
         new ViewParam().with({
           name: "label",
           description: "显示在控件上的名称标题",
+          type: ["string"],
+        }),
+        new ViewParam().with({
+          name: "value",
+          description: '选择的时间，使用 "yyyy-MM-dd HH:mm:ss" 格式',
           type: ["string"],
         }),
         new ViewParam().with({
@@ -211,6 +269,11 @@ export class Root extends ContextNode<Root> {
         new ViewParam().with({
           name: "label",
           description: "显示在控件上的名称标题",
+          type: ["string"],
+        }),
+        new ViewParam().with({
+          name: "value",
+          description: '选择的时长，使用 "HH:mm:ss" 格式',
           type: ["string"],
         }),
         new ViewParam().with({
@@ -338,6 +401,7 @@ export class ViewType extends ContextNode<ViewType> {
               z.literal("string"),
               z.literal("number"),
               z.literal("boolean"),
+              z.literal("function"),
               z.string().meta({ title: "视图类型名称" }),
             ]),
           ),
@@ -355,7 +419,7 @@ export class ViewType extends ContextNode<ViewType> {
 
 export class ViewParam extends ContextNode<ViewParam> {
   name: string;
-  description: string;
+  description?: string;
   required?: boolean = false;
   type?: string | string[] = "*";
 
@@ -365,7 +429,7 @@ export class ViewParam extends ContextNode<ViewParam> {
         title: "参数名称",
         description: "参数的名称，同时用作keyword名，不包含左侧的冒号号",
       }),
-      description: z.string().meta({
+      description: z.optional(z.string()).meta({
         title: "参数描述",
       }),
       required: z.boolean().meta({
@@ -379,6 +443,7 @@ export class ViewParam extends ContextNode<ViewParam> {
               z.literal("string"),
               z.literal("number"),
               z.literal("boolean"),
+              z.literal("function"),
               z.string().meta({ title: "视图类型名称" }),
             ]),
           ),
@@ -414,7 +479,9 @@ ${JSON.stringify(context.to_json())}
 
 - lisp: 使用 lisp 语言的代码块，可以在该代码块中放置一个 \`(view ...)\` 调用，\
 该调用及其子级会在回复结束后被执行并生成为实际的视图界面来为用户提供更丰富的可视化功能，\
-该代码块中的代码可以引用 js 代码块所产生的上下文对象，将属性名直接当作变量名引用即可。\
+该代码块中的代码可以引用 js 代码块所产生的上下文对象，将属性名直接当作变量名引用即可。
+
+对于 lisp 代码中的布尔值，使用 true/false 表示。
 
 对于支持的用于实际构成视图界面的视图函数及其参数，可以查看应用上下文的 \`available_views\` 字段。
 

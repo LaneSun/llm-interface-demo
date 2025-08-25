@@ -141,11 +141,15 @@ body {
 }
 
 @utility flex-fill {
-    @apply flex flex-1 min-h-0 min-w-0;
+    @apply flex flex-1 self-stretch place-self-stretch min-h-0 min-w-0;
 }
 
 @utility box-fill {
-    @apply box flex-1 min-h-0 min-w-0;
+    @apply box flex-1 self-stretch place-self-stretch min-h-0 min-w-0;
+}
+
+@utility grid-fill {
+    @apply grid flex-1 self-stretch place-self-stretch min-h-0 min-w-0;
 }
 
 @utility flex-scroll {
@@ -154,6 +158,10 @@ body {
 
 @utility box-scroll {
     @apply box-fill overflow-y-auto;
+}
+
+@utility grid-scroll {
+    @apply grid-fill overflow-auto;
 }
 
 @utility center {

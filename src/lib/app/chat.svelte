@@ -8,15 +8,17 @@
     import { marked } from "marked";
     import { Contexts, SYSTEM_PROMPT } from "./context";
     import { parse } from "@thi.ng/sexpr";
+    import { Views } from "./view";
+    import * as stores from "svelte/store";
 
     const opts = {
         service: "openrouter",
         baseUrl: "https://openrouter.ai/api/v1",
         apiKey: env.PUBLIC_OPENROUTER_API_KEY,
-        model: "openai/gpt-oss-120b",
+        // model: "openai/gpt-oss-120b",
         // model: "google/gemma-3-27b-it",
         // model: "inception/mercury",
-        // model: "deepseek/deepseek-chat-v3.1",
+        model: "deepseek/deepseek-chat-v3.1",
         // service: "deepseek",
         // apiKey: env.PUBLIC_DEEPSEEK_API_KEY,
         // model: "deepseek-chat",
@@ -59,17 +61,27 @@
             let response = "";
             last_llm_reaction_time = new Date().toLocaleString();
             history.push({ role: "assistant", content: "*Pending*" });
+            const idx = history.length - 1;
             for await (const res of await llm.chat(msg)) {
                 if (res instanceof Error) {
                     throw res;
                 }
                 response += res;
-                history[history.length - 1] = {
+                history[idx] = {
                     role: "assistant",
                     content: response,
                 };
             }
-            parse_view(history.length - 1);
+            console.log(response);
+            const env = await parse_prepare(idx);
+            const views = parse_view(idx, env);
+            console.log(views);
+            response = response.replaceAll(/```(?:js|lisp).*?```/g, "");
+            history[idx] = {
+                ...history[idx],
+                content: response,
+                views,
+            };
         } catch (e) {
             console.error(e);
             history.pop();
@@ -77,9 +89,18 @@
         }
     }
 
-    function parse_view(idx) {
+    async function parse_prepare(idx) {
         const { content } = history[idx];
-        console.log(content);
+        const prepare_content = content.match(/```js(.*?)```/s)?.[1];
+        if (prepare_content) {
+            const env = await prepare(prepare_content);
+            return env;
+        }
+        return {};
+    }
+
+    function parse_view(idx, env = {}) {
+        const { content } = history[idx];
         const view_content = content.match(/```lisp(.*?)```/s)?.[1];
         if (view_content) {
             const expr = parse(view_content, {
@@ -88,9 +109,14 @@
                     ["[", "]"],
                 ],
             });
-            const views = expr.children.map(parse_sexpr);
-            console.log(views);
+            const tenv = Object.fromEntries(
+                Object.entries(env).map(([k, v]) => [k.toLowerCase(), v]),
+            );
+            const asts = expr.children.map(parse_sexpr);
+            const views = asts.map((ast) => compile(ast, tenv));
+            return views;
         }
+        return undefined;
     }
 
     function parse_sexpr(expr) {
@@ -108,8 +134,21 @@
                         );
                 }
             }
-            case "sym":
-                return expr.value.toLowerCase();
+            case "sym": {
+                const sym = expr.value.toLowerCase();
+                switch (sym) {
+                    case "false":
+                        return ["boolean", false];
+                    case "true":
+                        return ["boolean", true];
+                    case "null":
+                        return ["null", null];
+                    case "undefined":
+                        return ["undefined"];
+                    default:
+                        return expr.value.toLowerCase();
+                }
+            }
             case "num":
                 return ["number", expr.value];
             case "str":
@@ -118,19 +157,112 @@
                 throw new Error(`Unsupported expression type: ${expr.type}`);
         }
     }
+
+    const Syms = ["array", ...Object.keys(Views)];
+
+    function sym_fix(sym) {
+        if (Syms.includes(sym)) return sym;
+        else throw `symbol ${sym} not found in ${Syms.join(", ")}`;
+    }
+
+    async function prepare(src) {
+        const store_list = Object.entries(stores);
+        const root = new Function(
+            store_list.map((e) => e[0]),
+            src + "\n;return prepare;",
+        );
+        const handle = root(...store_list.map((e) => e[1]));
+        return await handle(context);
+    }
+
+    function compile(ast, env = {}) {
+        function parse_params(args) {
+            function to_name(arg) {
+                return typeof arg === "string" &&
+                    (arg.startsWith(":") || arg.endsWith(":"))
+                    ? (arg.split(":").filter((s) => s.trim().length > 0)[0] ??
+                          null)
+                    : null;
+            }
+            const items = [];
+            const result = { items };
+            for (let i = 0; i < args.length; i++) {
+                const arg = args[i];
+                if (arg instanceof Array) {
+                    items.push(compile(arg, env));
+                } else if (typeof arg === "string") {
+                    const name = to_name(arg);
+                    if (name) {
+                        const val = args[i + 1];
+                        if (val instanceof Array) {
+                            result[name] = compile(val);
+                        } else if (typeof val === "string") {
+                            if (to_name(val)) {
+                                throw `named param ${name} should have a value`;
+                            } else if (val in env) {
+                                result[name] = env[val];
+                            } else {
+                                throw `variable named ${val} not found`;
+                            }
+                        } else if (val === undefined) {
+                            throw `named param ${name} should have a value`;
+                        } else {
+                            throw "unknow error";
+                        }
+                        i++;
+                    } else if (arg in env) {
+                        items.push(env[arg]);
+                    } else {
+                        throw `variable named ${arg} not found`;
+                    }
+                } else {
+                    throw "unknown error";
+                }
+            }
+            return result;
+        }
+        switch (ast[0]) {
+            case "string":
+            case "number":
+            case "boolean":
+            case "undefined":
+            case "null":
+                return ast[1];
+            default: {
+                const sym = sym_fix(ast[0]);
+                if (sym in Views) {
+                    const view = Views[sym];
+                    const params = parse_params(ast.slice(1));
+                    return [view, params];
+                } else {
+                    // TODO
+                    throw `view named ${sym} not found`;
+                }
+            }
+        }
+    }
 </script>
 
 <div class="box-fill">
     <div class="box-scroll p-4">
         <div class="box gap-2">
-            {#each history as { role, content }}
-                <div class="box gap-1 items-start">
+            {#each history as { role, content, views }}
+                <div class="box gap-1 items-start max-w-200">
                     <div class="text-muted-foreground text-sm">{role}</div>
                     <div
-                        class="text-secondary-foreground bg-secondary rounded px-2 py-1 select-text"
+                        class="f-md self-stretch text-secondary-foreground bg-secondary rounded px-2 py-1 select-text"
                     >
                         {@html marked(content)}
                     </div>
+                    {#if views}
+                        {#each views as [View, param]}
+                            <div
+                                class="box p-2 rounded border border-border bg-background"
+                            >
+                                <View {...param} />
+                            </div>
+                        {/each}
+                    {/if}
                 </div>
             {/each}
         </div>
@@ -143,3 +275,38 @@
         </form>
     </div>
 </div>
+
+<style>
+    @reference "$lib/../app.css";
+
+    :global(.f-md h1) {
+        @apply text-2xl font-bold my-6;
+    }
+
+    :global(.f-md h2) {
+        @apply text-xl font-bold my-5;
+    }
+
+    :global(.f-md h3) {
+        @apply text-lg font-bold my-4;
+    }
+
+    :global(.f-md h4) {
+        @apply text-base font-bold my-3;
+    }
+
+    :global(.f-md p) {
+        @apply text-base my-2;
+    }
+
+    :global(.f-md code) {
+        --c-bg: color-mix(in lch, var(--background) 50%, var(--secondary));
+        @apply relative p-2 max-h-32 block overflow-hidden border border-border rounded text bg-muted-foreground my-2 min-w-0 select-all;
+    }
+
+    :global(.f-md code::after) {
+        @apply pointer-events-none absolute inset-0;
+        content: " ";
+        background: linear-gradient(to bottom, transparent 50%, var(--c-bg));
+    }
+</style>

@@ -1,4 +1,11 @@
 import { clsx, type ClassValue } from "clsx";
+import {
+  derived,
+  readable,
+  writable,
+  type Readable,
+  type Writable,
+} from "svelte/store";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -43,3 +50,15 @@ export const merge = (overrides: any[]) => {
   };
   return overrides.reduce((a: any, c: any) => _merge(a, c), {});
 };
+
+export const to_readable = (val: Readable<any> | any) =>
+  val.subscribe ? val : readable(val);
+
+export const to_readables = (vals: (Readable<any> | any)[]) =>
+  derived(vals.map(to_readable), ($val) => $val);
+
+export const to_writable = (val: Writable<any> | any) =>
+  val.subscribe ? val : writable(val);
+
+export const to_writables = (vals: (Writable<any> | any)[]) =>
+  derived(vals.map(to_writable), ($val) => $val);
