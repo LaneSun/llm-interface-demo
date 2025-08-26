@@ -7,6 +7,7 @@ import {
   type Writable,
 } from "svelte/store";
 import { twMerge } from "tailwind-merge";
+import * as datetime from "@std/datetime";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -62,3 +63,58 @@ export const to_writable = (val: Writable<any> | any) =>
 
 export const to_writables = (vals: (Writable<any> | any)[]) =>
   derived(vals.map(to_writable), ($val) => $val);
+
+export const parse_time = (str: string) =>
+  datetime.parse(str, "yyyy-MM-ddTHH:mm:ss");
+export const parse_duration = (str: string) => datetime.parse(str, "HH:mm:ss");
+
+export const format_time = (date: Date) =>
+  datetime.format(date, "yyyy-MM-ddTHH:mm:ss");
+export const format_duration = (duration: Date) =>
+  datetime.format(duration, "HH:mm:ss");
+
+export const create_renderer = (handle: Function) => {
+  let running = true;
+  (async () => {
+    while (running) {
+      await handle();
+      await frame();
+    }
+  })();
+  return { stop: () => (running = false) };
+};
+
+export class CircularBuffer {
+  buffer: Array<any>;
+  capacity: number;
+  head: number;
+  size: number;
+
+  constructor(capacity: number) {
+    this.buffer = new Array(capacity);
+    this.capacity = capacity;
+    this.head = 0;
+    this.size = 0;
+  }
+
+  push(value: any) {
+    if (this.size === this.capacity) {
+      this.buffer[this.head] = value;
+      this.head = (this.head + 1) % this.capacity;
+    } else {
+      const head = (this.head + this.size) % this.capacity;
+      this.buffer[head] = value;
+      this.size++;
+    }
+  }
+
+  get(index: number) {
+    if (index < 0 || index >= this.size) return undefined;
+    const i = (this.head + index) % this.capacity;
+    return this.buffer[i];
+  }
+
+  get length() {
+    return this.size;
+  }
+}

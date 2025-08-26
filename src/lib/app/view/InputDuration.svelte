@@ -1,7 +1,8 @@
 <script lang="ts">
     import Input from "$lib/components/ui/input/input.svelte";
     import Label from "$lib/components/ui/label/label.svelte";
-    import { to_writable } from "$lib/utils";
+    import { parse_duration, to_writable } from "$lib/utils";
+    import { get } from "svelte/store";
 
     let {
         label = "",
@@ -17,50 +18,26 @@
 
     let rvalue = to_writable(value);
 
-    function parseTimeString(timeStr: string): {
-        hours: number;
-        minutes: number;
-        seconds: number;
-    } {
-        const parts = timeStr.split(":");
-        return {
-            hours: parseInt(parts[0] || "0", 10),
-            minutes: parseInt(parts[1] || "0", 10),
-            seconds: parseInt(parts[2] || "0", 10),
-        };
+    function reset_time(value: string) {
+        rvalue.set(min);
+        rvalue.set(max);
+        rvalue.set(value);
     }
 
-    function isValidTime(timeStr: string): boolean {
-        const { hours, minutes, seconds } = parseTimeString(timeStr);
-        return (
-            hours >= 0 &&
-            hours <= 23 &&
-            minutes >= 0 &&
-            minutes <= 59 &&
-            seconds >= 0 &&
-            seconds <= 59
-        );
-    }
-
-    function validateAndSetValue(inputValue: string) {
-        if (isValidTime(inputValue)) {
-            const { hours, minutes, seconds } = parseTimeString(inputValue);
-            const minTime = parseTimeString(min);
-            const maxTime = parseTimeString(max);
-
-            // Convert to total seconds for comparison
-            const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-            const minTotalSeconds =
-                minTime.hours * 3600 + minTime.minutes * 60 + minTime.seconds;
-            const maxTotalSeconds =
-                maxTime.hours * 3600 + maxTime.minutes * 60 + maxTime.seconds;
-
-            if (
-                totalSeconds >= minTotalSeconds &&
-                totalSeconds <= maxTotalSeconds
-            ) {
-                rvalue.set(inputValue);
+    function validateAndSetValue(input: string) {
+        try {
+            const time = parse_duration(input);
+            const min_time = parse_duration(min);
+            const max_time = parse_duration(max);
+            if (time < min_time) {
+                reset_time(min);
+            } else if (time > max_time) {
+                reset_time(max);
+            } else {
+                rvalue.set(input);
             }
+        } catch {
+            reset_time(get(rvalue));
         }
     }
 
@@ -72,16 +49,14 @@
 
 <div class="box-fill gap-1.5">
     {#if label}
-        <Label>{label}</Label>
+        <Label class="whitespace-nowrap">{label}</Label>
     {/if}
 
     <Input
         type="time"
-        step="1"
+        step={1}
         value={$rvalue}
         oninput={handleInput}
-        {min}
-        {max}
         placeholder="选择时长"
     />
 </div>

@@ -7,7 +7,7 @@
     let ritems = to_readables(items);
 </script>
 
-<Label>
+<Label class="whitespace-nowrap">
     {#each $ritems as item}
         <span>{item}</span>
     {/each}

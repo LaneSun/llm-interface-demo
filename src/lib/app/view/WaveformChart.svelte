@@ -1,233 +1,218 @@
-<script lang="ts">
-    import { onMount, onDestroy } from "svelte";
+<script>
+    import Label from "$lib/components/ui/label/label.svelte";
+    import { CircularBuffer, create_renderer, to_readable } from "$lib/utils";
+    import { onMount, tick } from "svelte";
+    import { readable } from "svelte/store";
+
+    const colors = [
+        "#f43f5e",
+        "#d946ef",
+        "#3b82f6",
+        "#06b6d4",
+        "#14b8a6",
+        "#22c55e",
+        "#eab308",
+    ];
 
     let {
         label = "",
-        duration = "00:10:00",
-        color = "#3b82f6",
-    }: {
-        label?: string;
-        duration?: string;
-        color?: string;
+        emitter = readable(0),
+        duration = 1000,
+        color: p_color = colors[0 | (Math.random() * colors.length)],
     } = $props();
 
-    let canvasElement: HTMLCanvasElement;
-    let ctx: CanvasRenderingContext2D | null = null;
-    let animationFrameId: number;
-    let startTime = Date.now();
+    let s_color = to_readable(p_color);
+    let color = $derived($s_color);
 
-    // Parse duration string to milliseconds
-    function parseDuration(durationStr: string): number {
-        const parts = durationStr.split(":");
-        const hours = parseInt(parts[0] || "0", 10);
-        const minutes = parseInt(parts[1] || "0", 10);
-        const seconds = parseInt(parts[2] || "0", 10);
-        return (hours * 3600 + minutes * 60 + seconds) * 1000;
-    }
+    let signal_data = new CircularBuffer(duration);
+    let data_min = $state(0);
+    let data_max = $state(1);
 
-    const durationMs = parseDuration(duration);
-
-    // Generate sample waveform data
-    function generateWaveformData(
-        width: number,
-        currentTime: number,
-    ): number[] {
-        const data: number[] = [];
-        const frequency1 = 0.02;
-        const frequency2 = 0.05;
-        const amplitude = 0.4;
-
-        for (let i = 0; i < width; i++) {
-            const x = i + currentTime * 0.1;
-            const wave1 = Math.sin(x * frequency1) * amplitude;
-            const wave2 = Math.sin(x * frequency2) * amplitude * 0.5;
-            const noise = (Math.random() - 0.5) * 0.1;
-            data.push((wave1 + wave2 + noise) * 0.8);
-        }
-
-        return data;
-    }
-
-    function drawWaveform() {
-        if (!ctx || !canvasElement) return;
-
-        const width = canvasElement.width;
-        const height = canvasElement.height;
-        const centerY = height / 2;
-        const currentTime = Date.now() - startTime;
-
-        // Clear canvas
-        ctx.fillStyle = "#f8fafc";
-        ctx.fillRect(0, 0, width, height);
-
-        // Draw grid
-        ctx.strokeStyle = "#e2e8f0";
-        ctx.lineWidth = 1;
-
-        // Horizontal grid lines
-        for (let y = 0; y <= height; y += height / 8) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(width, y);
-            ctx.stroke();
-        }
-
-        // Vertical grid lines
-        for (let x = 0; x <= width; x += width / 10) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, height);
-            ctx.stroke();
-        }
-
-        // Center line
-        ctx.strokeStyle = "#94a3b8";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, centerY);
-        ctx.lineTo(width, centerY);
-        ctx.stroke();
-
-        // Generate and draw waveform
-        const waveformData = generateWaveformData(width, currentTime);
-
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-
-        for (let i = 0; i < waveformData.length; i++) {
-            const x = i;
-            const y = centerY + waveformData[i] * (height * 0.3);
-
-            if (i === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        }
-
-        ctx.stroke();
-
-        // Draw time markers
-        ctx.fillStyle = "#64748b";
-        ctx.font = "12px monospace";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "bottom";
-
-        const elapsedSeconds = Math.floor(currentTime / 1000);
-        const timeText = `${Math.floor(elapsedSeconds / 60)
-            .toString()
-            .padStart(
-                2,
-                "0",
-            )}:${(elapsedSeconds % 60).toString().padStart(2, "0")}`;
-        ctx.fillText(timeText, 10, height - 10);
-
-        // Continue animation
-        animationFrameId = requestAnimationFrame(drawWaveform);
-    }
-
-    function resizeCanvas() {
-        if (!canvasElement) return;
-
-        const rect = canvasElement.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-
-        canvasElement.width = rect.width * dpr;
-        canvasElement.height = rect.height * dpr;
-
-        if (ctx) {
-            ctx.scale(dpr, dpr);
-        }
-    }
+    /** @type {CanvasRenderingContext2D} */
+    let context = $state();
 
     onMount(() => {
-        if (canvasElement) {
-            ctx = canvasElement.getContext("2d");
-            resizeCanvas();
-            drawWaveform();
+        const unsubscribe = emitter.subscribe((value) => {
+            add_data(value);
+        });
+        return () => {
+            unsubscribe();
+        };
+    });
 
-            window.addEventListener("resize", resizeCanvas);
+    $effect(() => {
+        if (duration) {
+            signal_data = new CircularBuffer(duration);
         }
     });
 
-    onDestroy(() => {
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
+    $effect(() => {
+        if (context && color) {
+            const cav = context.canvas;
+            const gradient = context.createLinearGradient(0, 0, 0, cav.height);
+            gradient.addColorStop(0, color + "66");
+            gradient.addColorStop(1, color + "00");
+            cav.gradient = gradient;
         }
-        window.removeEventListener("resize", resizeCanvas);
     });
+
+    function add_data(data) {
+        signal_data.push(data);
+        update_data_range();
+    }
+
+    function update_data_range() {
+        if (signal_data.length === 0) return;
+
+        let min = signal_data.get(0);
+        let max = signal_data.get(0);
+
+        for (let i = 1; i < signal_data.length; i++) {
+            const value = signal_data.get(i);
+            if (value < min) min = value;
+            if (value > max) max = value;
+        }
+
+        // 添加一些边距以避免数据触及边界
+        const range = max - min;
+        const margin = range > 0 ? range * 0.1 : 0.1;
+
+        data_min = min - margin;
+        data_max = max + margin;
+    }
 </script>
 
-<div class="waveform-chart-container">
+<div
+    class="relative box self-start rounded overflow-auto border border-border bg-background"
+>
+    <canvas
+        class="w-full h-full"
+        width="500"
+        height="300"
+        style:image-rendering="smooth"
+        {@attach async (cav) => {
+            await tick();
+            context = cav.getContext("2d");
+            cav.width = cav.clientWidth;
+            cav.height = cav.clientHeight;
+            const gradient = context.createLinearGradient(0, 0, 0, cav.height);
+            gradient.addColorStop(0, color + "66");
+            gradient.addColorStop(1, color + "00");
+            cav.gradient = gradient;
+            context.lineWidth = 1;
+        }}
+        {@attach (cav) => {
+            const { stop } = create_renderer(() => {
+                if (context) {
+                    context.clearRect(0, 0, cav.width, cav.height);
+                    context.beginPath();
+                    const ypos = (data) => {
+                        if (data_max === data_min) return cav.height / 2;
+                        return (
+                            cav.height *
+                            (1 - (data - data_min) / (data_max - data_min))
+                        );
+                    };
+                    context.moveTo(-2, cav.height + 2);
+                    const p0 = signal_data.get(0);
+                    context.lineTo(-2, ypos(p0));
+                    context.lineTo(0, ypos(p0));
+                    for (let i = 1; i < signal_data.length; i++) {
+                        context.lineTo(
+                            cav.width * (i / signal_data.length),
+                            ypos(signal_data.get(i)),
+                        );
+                    }
+                    context.lineTo(
+                        cav.width + 2,
+                        ypos(signal_data.get(signal_data.length - 1)),
+                    );
+                    context.lineTo(cav.width + 2, cav.height + 2);
+                    context.closePath();
+                    context.globalAlpha = 1;
+                    context.fillStyle = cav.gradient;
+                    context.strokeStyle = color;
+                    context.fill();
+                    context.stroke();
+                    const cur_data = signal_data.get(signal_data.length - 1);
+                    const prev_data = cav.prev_data ?? cur_data;
+                    cav.prev_data = cur_data;
+                    context.fillStyle = color;
+                    const scaledHeight =
+                        (Math.abs(cur_data - prev_data) /
+                            (data_max - data_min)) *
+                        cav.height;
+                    context.globalAlpha = 1 / Math.sqrt(scaledHeight + 1);
+                    context.fillRect(
+                        0,
+                        ypos(Math.max(cur_data, prev_data)) - 1,
+                        cav.width,
+                        scaledHeight + 2,
+                    );
+                }
+            });
+            return stop;
+        }}
+    ></canvas>
     {#if label}
-        <div class="chart-header">
-            <h3 class="chart-label">{label}</h3>
-            <div class="chart-controls">
-                <span class="duration-display">时长: {duration}</span>
-            </div>
-        </div>
+        <Label
+            class="absolute left-2 top-2 whitespace-nowrap text-foreground/50"
+        >
+            {label}
+        </Label>
     {/if}
+    <div
+        class="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 hover:border-primary cursor-se-resize"
+        {@attach (e) => {
+            if (context) {
+                const cav = context.canvas;
+                let isDragging = false;
+                let startX = 0;
+                let startY = 0;
+                let startWidth = 0;
+                let startHeight = 0;
+                const on_start = (e) => {
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startWidth = cav.width;
+                    startHeight = cav.height;
+                };
+                const on_move = async (e) => {
+                    if (isDragging) {
+                        const deltaX = e.clientX - startX;
+                        const deltaY = e.clientY - startY;
+                        const newWidth = Math.max(100, startWidth + deltaX);
+                        const newHeight = Math.max(24, startHeight + deltaY);
 
-    <div class="chart-wrapper">
-        <canvas bind:this={canvasElement} class="waveform-canvas"></canvas>
-    </div>
+                        cav.width = newWidth;
+                        cav.height = newHeight;
+                        await tick();
+                        cav.width = cav.clientWidth;
+                        cav.height = cav.clientHeight;
+                        const gradient = context.createLinearGradient(
+                            0,
+                            0,
+                            0,
+                            cav.height,
+                        );
+                        gradient.addColorStop(0, color + "66");
+                        gradient.addColorStop(1, color + "00");
+                        cav.gradient = gradient;
+                    }
+                };
+                const on_end = (e) => {
+                    isDragging = false;
+                };
+                e.addEventListener("mousedown", on_start);
+                window.addEventListener("mousemove", on_move);
+                window.addEventListener("mouseup", on_end);
+                return () => {
+                    e.removeEventListener("mousedown", on_start);
+                    window.removeEventListener("mousemove", on_move);
+                    window.removeEventListener("mouseup", on_end);
+                };
+            }
+        }}
+    ></div>
 </div>
-
-<style>
-    .waveform-chart-container {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        width: 100%;
-        height: 300px;
-        background-color: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 16px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-
-    .chart-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-
-    .chart-label {
-        margin: 0;
-        font-size: 16px;
-        font-weight: 600;
-        color: #374151;
-    }
-
-    .chart-controls {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .duration-display {
-        font-size: 12px;
-        color: #6b7280;
-        font-family: monospace;
-        background-color: #f3f4f6;
-        padding: 4px 8px;
-        border-radius: 4px;
-    }
-
-    .chart-wrapper {
-        flex: 1;
-        position: relative;
-        overflow: hidden;
-        border-radius: 6px;
-    }
-
-    .waveform-canvas {
-        width: 100%;
-        height: 100%;
-        display: block;
-        cursor: crosshair;
-    }
-</style>

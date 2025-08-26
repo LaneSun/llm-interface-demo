@@ -3,6 +3,8 @@
     import { Button } from "$lib/components/ui/button";
     import Input from "$lib/components/ui/input/input.svelte";
     import Separator from "$lib/components/ui/separator/separator.svelte";
+    import RotateCw from "@lucide/svelte/icons/rotate-cw";
+    import SendHorizontal from "@lucide/svelte/icons/send-horizontal";
     import LLM from "@themaximalist/llm.js";
     import { onMount } from "svelte";
     import { marked } from "marked";
@@ -15,10 +17,10 @@
         service: "openrouter",
         baseUrl: "https://openrouter.ai/api/v1",
         apiKey: env.PUBLIC_OPENROUTER_API_KEY,
-        // model: "openai/gpt-oss-120b",
+        model: "openai/gpt-oss-120b",
         // model: "google/gemma-3-27b-it",
         // model: "inception/mercury",
-        model: "deepseek/deepseek-chat-v3.1",
+        // model: "deepseek/deepseek-chat-v3.1",
         // service: "deepseek",
         // apiKey: env.PUBLIC_DEEPSEEK_API_KEY,
         // model: "deepseek-chat",
@@ -73,19 +75,41 @@
                 };
             }
             console.log(response);
-            const env = await parse_prepare(idx);
-            const views = parse_view(idx, env);
-            console.log(views);
-            response = response.replaceAll(/```(?:js|lisp).*?```/g, "");
-            history[idx] = {
-                ...history[idx],
-                content: response,
-                views,
-            };
+            try {
+                const env = await parse_prepare(idx);
+                const views = parse_view(idx, env);
+                console.log(views);
+                // response = response.replaceAll(/```(?:js|lisp).*?```/gs, "");
+                history[idx] = {
+                    ...history[idx],
+                    content: response,
+                    views,
+                };
+            } catch (e) {
+                console.error(e);
+                const err_msg = e.toString();
+                history[idx] = {
+                    ...history[idx],
+                    error: err_msg,
+                };
+            }
         } catch (e) {
             console.error(e);
             history.pop();
-            history.push({ role: "assistant", content: e.toString() });
+            alert(e.toString());
+        }
+    }
+
+    async function retry(idx) {
+        await chat(
+            `你编写的代码有误，请修正并重新回答，报错为：${history[idx].error}`,
+        );
+        if (!history.at(-1).error) {
+            for (let i = 0; i < history.length; i++) {
+                if (history[i].error) {
+                    history.splice(i, 2);
+                }
+            }
         }
     }
 
@@ -172,7 +196,7 @@
             src + "\n;return prepare;",
         );
         const handle = root(...store_list.map((e) => e[1]));
-        return await handle(context);
+        return await handle({ ...context, ...stores });
     }
 
     function compile(ast, env = {}) {
@@ -245,19 +269,32 @@
 
 <div class="box-fill">
     <div class="box-scroll p-4">
-        <div class="box gap-2">
-            {#each history as { role, content, views }}
-                <div class="box gap-1 items-start max-w-200">
-                    <div class="text-muted-foreground text-sm">{role}</div>
+        <div class="box gap-2 pb-[50vh]">
+            {#each history as { role, content, views, error }, idx}
+                <div class="box gap-1">
                     <div
-                        class="f-md self-stretch text-secondary-foreground bg-secondary rounded px-2 py-1 select-text"
+                        class="box items-start gap-1 mx-auto min-w-0 w-160 max-w-full"
                     >
-                        {@html marked(content)}
+                        <div class="text-muted-foreground text-sm">{role}</div>
+                        <div
+                            class="f-md self-stretch text-secondary-foreground bg-secondary rounded px-2 py-1 select-text"
+                        >
+                            {@html marked(content)}
+                        </div>
+                        {#if error}
+                            <button
+                                class="flex items-center rounded px-2 py-1 gap-1 text-destructive bg-destructive/20"
+                                onclick={() => retry(idx)}
+                            >
+                                <RotateCw class="flex-none size-4" />
+                                错误： {error}
+                            </button>
+                        {/if}
                     </div>
                     {#if views}
                         {#each views as [View, param]}
                             <div
-                                class="box p-2 rounded border border-border bg-background"
+                                class="self-center box p-2 rounded border border-border bg-background"
                             >
                                 <View {...param} />
                             </div>
@@ -271,7 +308,7 @@
     <div class="flex p-2 gap-2">
         <form class="contents" onsubmit={() => chat(input)}>
             <Input bind:value={input} />
-            <Button type="submit">发送</Button>
+            <Button type="submit"><SendHorizontal /></Button>
         </form>
     </div>
 </div>
@@ -301,7 +338,8 @@
 
     :global(.f-md code) {
         --c-bg: color-mix(in lch, var(--background) 50%, var(--secondary));
-        @apply relative p-2 max-h-32 block overflow-hidden border border-border rounded text bg-muted-foreground my-2 min-w-0 select-all;
+        @apply relative p-2 max-h-32 block overflow-hidden border border-border rounded text-muted-foreground my-2 min-w-0 select-all;
+        background: var(--c-bg);
     }
 
     :global(.f-md code::after) {

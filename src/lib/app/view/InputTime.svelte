@@ -5,7 +5,7 @@
 
     let {
         label = "",
-        value = "",
+        value = "1970-01-01T00:00:00",
         time = true,
         date = true,
     }: {
@@ -34,12 +34,13 @@
 
 <div class="box-fill gap-1.5">
     {#if label}
-        <Label>{label}</Label>
+        <Label class="whitespace-nowrap">{label}</Label>
     {/if}
 
     <Input
         type={getInputType()}
         bind:value={$rvalue}
         placeholder={getPlaceholder()}
+        step={1}
     />
 </div>

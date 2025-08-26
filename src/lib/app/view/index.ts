@@ -17,7 +17,6 @@ import InputColor from "./InputColor.svelte";
 import InputTime from "./InputTime.svelte";
 import InputDuration from "./InputDuration.svelte";
 import WaveformChart from "./WaveformChart.svelte";
-import Realtime from "./realtime.svelte";
 
 export const Views = {
   // Layout components
@@ -48,7 +47,4 @@ export const Views = {
 
   // Chart components
   "waveform-chart": WaveformChart,
-
-  // Legacy component
-  // Realtime,
 };

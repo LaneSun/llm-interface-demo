@@ -9,6 +9,7 @@
       "devDependencies": {
         "@internationalized/date": "^3.8.1",
         "@lucide/svelte": "^0.515.0",
+        "@std/datetime": "npm:@jsr/std__datetime",
         "@sveltejs/adapter-auto": "^6.0.0",
         "@sveltejs/kit": "^2.22.0",
         "@sveltejs/vite-plugin-svelte": "^6.0.0",
@@ -159,6 +160,8 @@
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.46.2", "", { "os": "win32", "cpu": "x64" }, "sha512-CvUo2ixeIQGtF6WvuB87XWqPQkoFAFqW+HUo/WzHwuHDvIwZCtjdWXoYCcr06iKGydiqTclC4jU/TNObC/xKZg=="],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.0.0", "", {}, "sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA=="],
+
+    "@std/datetime": ["@jsr/std__datetime@0.225.5", "https://npm.jsr.io/~/11/@jsr/std__datetime/0.225.5.tgz", {}, "sha512-J11UeI2KGbnIdARtAU0H+sTDfBIYQPI3jVpzvjxhWNi/KWZt+U3nnFfyzx9ZyxRG5xKc37GGJ6bCbLC0iFkZEA=="],
 
     "@sveltejs/acorn-typescript": ["@sveltejs/acorn-typescript@1.0.5", "", { "peerDependencies": { "acorn": "^8.9.0" } }, "sha512-IwQk4yfwLdibDlrXVE04jTZYlLnwsTT2PIOQQGNLWfjavGifnk1JD1LcZjZaBTRcxZu2FfPfNLOE04DSu9lqtQ=="],
 

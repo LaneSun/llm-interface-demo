@@ -11,14 +11,14 @@
     }
 
     /* In h-box context */
-    :global(.f-hbox) .separator {
+    :global(.f-hbox) > .separator {
         width: 1px;
         align-self: stretch;
         margin: -0.5rem 0;
     }
 
     /* In v-box context */
-    :global(.v-box) .separator {
+    :global(.f-vbox) > .separator {
         height: 1px;
         margin: 0 -0.5rem;
     }

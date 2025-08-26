@@ -16,7 +16,7 @@
 
 <div class="box-fill gap-1.5">
     {#if label}
-        <Label>{label}</Label>
+        <Label class="whitespace-nowrap">{label}</Label>
     {/if}
 
     <Input type="text" bind:value={$rvalue} placeholder="请输入文本" />

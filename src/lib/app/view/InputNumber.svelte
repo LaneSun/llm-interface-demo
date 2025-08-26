@@ -20,7 +20,7 @@
 
 <div class="box-fill gap-1.5">
     {#if label}
-        <Label>{label}</Label>
+        <Label class="whitespace-nowrap">{label}</Label>
     {/if}
 
     <Input
