@@ -152,7 +152,7 @@ body {
 }
 
 @utility grid-fill {
-    @apply grid flex-1 self-stretch place-self-stretch min-h-0 min-w-0;
+    @apply grid flex-1 self-stretch place-self-stretch min-w-0;
 }
 
 @utility flex-scroll {

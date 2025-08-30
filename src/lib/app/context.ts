@@ -309,9 +309,38 @@ export class Root extends ContextNode<Root> {
         }),
         new ViewParam().with({
           name: "emitter",
+          required: true,
           description:
             "图表的信号源，必须是一个svelte store，每次变化的值会作为一个数据点位被图表渲染",
           type: ["number"],
+        }),
+      ],
+    }),
+    new ViewType().with({
+      name: "xy-chart",
+      description: "用来显示信号表示的点的轨迹的视图组件，可以实时显示",
+      params: [
+        new ViewParam().with({
+          name: "label",
+          description: "显示在控件上的名称标题",
+          type: ["string"],
+        }),
+        new ViewParam().with({
+          name: "duration",
+          description: "可显示区域的最多点数",
+          type: ["number"],
+        }),
+        new ViewParam().with({
+          name: "color",
+          description: "图表的线条颜色，使用CSS颜色值格式表示",
+          type: ["string"],
+        }),
+        new ViewParam().with({
+          name: "emitter",
+          required: true,
+          description:
+            "图表的信号源，必须是一个svelte store，每次变化的值会作为一个数据点位被图表渲染，向 store 设置的原始值为包含两个数字的元组，第一个数字是X轴坐标，第二个数字是Y轴坐标，禁止向 store 设置元组向量的数组",
+          type: "*",
         }),
       ],
     }),
@@ -503,6 +532,9 @@ prepare 函数可以返回一个对象，该对象的所有属性都可以在 li
 这些函数在 js 代码中是全局函数，可以直接使用，不需要导入，\
 这意味着也可以使用 setTimeout 来动态更新界面，或是使用 writable 来获取界面上的用户输入。
 
+要获取 Svelte Store 中的实际值，使用 全局函数 \`get\`，如：\`get(some_store)\`，要向 writable 中设置值，\
+请使用 \`.set\` 方法，如：\`some_store.set(value)\`。
+
 注意js代码块会在所有lisp代码块之前执行。同时，js 与 lisp 环境共用 string/number/boolean/array/object/function \
 这些基本类型，而 Svelte Store 则会被当作是其包含的基本类型，并在发生更新时动态更新 lisp 生成。
 
@@ -517,23 +549,25 @@ function prepare(context) {
   setInterval(update, 1000);
   return {
     vtime: time,
+    msg: writable("hello"),
   };
 }
 \`\`\`
 
 \`\`\`lisp
 (view
-  (label "当前时间: " vtime)
+  (v-box
+    (input-text :value msg)
+    (label "当前时间: " vtime)
+    (label msg)
+  )
 )
 \`\`\`
 
 如上所示，一般的流程是使用js代码块定义数据与信号处理算法、管线、命令，\
 然后暴露出可绑定数据或方法提供给lisp代码块来创建视图界面。
 
-对应回复中使用的 lisp 代码，请使用 2 空格的缩进进行格式化，并避免将占用多行的表达式的\
-闭括号紧跟在单行表达式的闭括号之后，请另起独立的一行闭合其括号并遵循缩进。
-
-**特别注意必须保证 lisp 代码的开闭括号正确无误！**
+**特别注意保证 lisp 代码的开闭括号正确无误！**
 `;
 
 // You are an AI assistant for ${context.app_name}. Here is the current app context:

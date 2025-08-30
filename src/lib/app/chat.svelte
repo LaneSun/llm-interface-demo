@@ -12,15 +12,16 @@
     import { parse } from "@thi.ng/sexpr";
     import { Views } from "./view";
     import * as stores from "svelte/store";
+    import Textarea from "$lib/components/ui/textarea/textarea.svelte";
 
     const opts = {
         service: "openrouter",
         baseUrl: "https://openrouter.ai/api/v1",
         apiKey: env.PUBLIC_OPENROUTER_API_KEY,
-        model: "openai/gpt-oss-120b",
+        // model: "openai/gpt-oss-120b",
         // model: "google/gemma-3-27b-it",
         // model: "inception/mercury",
-        // model: "deepseek/deepseek-chat-v3.1",
+        model: "deepseek/deepseek-chat-v3.1",
         // service: "deepseek",
         // apiKey: env.PUBLIC_DEEPSEEK_API_KEY,
         // model: "deepseek-chat",
@@ -275,7 +276,17 @@
                     <div
                         class="box items-start gap-1 mx-auto min-w-0 w-160 max-w-full"
                     >
-                        <div class="text-muted-foreground text-sm">{role}</div>
+                        <div class="text-sm flex gap-1 items-center">
+                            <div class="text-muted-foreground">{role}</div>
+                            <Button
+                                class="text-xs px-1! h-5"
+                                variant="secondary"
+                                onclick={() =>
+                                    navigator.clipboard.writeText(content)}
+                            >
+                                复制
+                            </Button>
+                        </div>
                         <div
                             class="f-md self-stretch text-secondary-foreground bg-secondary rounded px-2 py-1 select-text"
                         >
@@ -307,7 +318,7 @@
     <Separator />
     <div class="flex p-2 gap-2">
         <form class="contents" onsubmit={() => chat(input)}>
-            <Input bind:value={input} />
+            <Textarea bind:value={input} />
             <Button type="submit"><SendHorizontal /></Button>
         </form>
     </div>
@@ -336,13 +347,13 @@
         @apply text-base my-2;
     }
 
-    :global(.f-md code) {
+    :global(.f-md pre > code) {
         --c-bg: color-mix(in lch, var(--background) 50%, var(--secondary));
         @apply relative p-2 max-h-32 block overflow-hidden border border-border rounded text-muted-foreground my-2 min-w-0 select-all;
         background: var(--c-bg);
     }
 
-    :global(.f-md code::after) {
+    :global(.f-md pre > code::after) {
         @apply pointer-events-none absolute inset-0;
         content: " ";
         background: linear-gradient(to bottom, transparent 50%, var(--c-bg));
