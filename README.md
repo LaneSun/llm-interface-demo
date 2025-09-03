@@ -16,7 +16,7 @@
 
 ## 示例视频和图片
 
-https://raw.githubusercontent.com/LaneSun/llm-interface-demo/refs/heads/master/assert/video.mp4
+https://github.com/user-attachments/assets/bb2a986c-9f87-4bbd-8b6e-e51549bc7184
 
 生成的示例界面:
 
